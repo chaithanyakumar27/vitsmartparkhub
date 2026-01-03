@@ -49,12 +49,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 220 30% 15%;
-    --sidebar-foreground: 240 5% 10%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 258 89% 66%;
     --sidebar-primary-foreground: 250 100% 97%;
-    --sidebar-accent: 240 5% 33%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 4% 83%;
+    --sidebar-accent: 220 30% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 30% 25%;
     --sidebar-ring: 258 89% 66%;
 
     --vit-blue: 220 80% 45%;
