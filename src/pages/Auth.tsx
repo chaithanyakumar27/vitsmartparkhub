@@ -104,7 +104,7 @@ const Auth = () => {
       <Card className="w-full max-w-md relative z-10 border-0 shadow-2xl bg-card/95 backdrop-blur-sm">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="mx-auto w-20 h-20 bg-primary/20 rounded-2xl flex items-center justify-center shadow-lg">
-            <Car className="w-10 h-10 text-primary" strokeWidth={2.5} />
+            <Car className="w-10 h-10 text-primary fill-primary" strokeWidth={2.5} />
           </div>
           <div>
             <CardTitle className="text-3xl font-display text-foreground">
