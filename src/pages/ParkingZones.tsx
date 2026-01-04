@@ -92,7 +92,7 @@ const ParkingZones = () => {
             <Card
               key={zone.id}
               className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-              onClick={() => navigate(`/booking?zone=${zone.code}`)}
+              onClick={() => navigate(`/zone/${zone.code}`)}
             >
               <div className="relative h-48 overflow-hidden">
                 <img
@@ -130,7 +130,7 @@ const ParkingZones = () => {
                 </div>
                 
                 <Button className="w-full" size="sm">
-                  Book Now
+                  View Details
                 </Button>
               </CardContent>
             </Card>

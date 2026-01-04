@@ -22,6 +22,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSettings from "./pages/admin/AdminSettings";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+import ZoneDetails from "./pages/ZoneDetails";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,7 @@ const AppRoutes = () => {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
       <Route path="/zones" element={<ProtectedRoute><ParkingZones /></ProtectedRoute>} />
+      <Route path="/zone/:code" element={<ProtectedRoute><ZoneDetails /></ProtectedRoute>} />
       <Route path="/booking" element={<ProtectedRoute><Booking /></ProtectedRoute>} />
       <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
