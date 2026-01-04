@@ -56,7 +56,7 @@ const adminItems: NavItem[] = [
 const Sidebar = () => {
   const location = useLocation();
   const { isAdmin, isStaff } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const filteredNavItems = navItems.filter(item => {
     if (item.adminOnly && !isAdmin) return false;
