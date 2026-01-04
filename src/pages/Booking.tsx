@@ -8,11 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CalendarIcon, Car, MapPin, Clock, CheckCircle } from 'lucide-react';
+import { CalendarIcon, Car, MapPin, Clock, CheckCircle, Gift, AlertTriangle, IndianRupee } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  calculateBookingPrice,
+  checkFreeDayEligibility,
+  markFreeDayUsed,
+  formatCurrency,
+  PRICING_INFO,
+  PricingBreakdown,
+} from '@/utils/pricingCalculator';
 
 type VehicleType = 'car' | 'motorcycle' | 'scooter' | 'bicycle';
 
@@ -50,6 +59,13 @@ const Booking = () => {
   const [selectedTime, setSelectedTime] = useState('');
   const [duration, setDuration] = useState('1');
 
+  // Pricing state
+  const [freeDayEligible, setFreeDayEligible] = useState(false);
+  const [freeDayUsed, setFreeDayUsed] = useState(false);
+  const [useFreeDayBenefit, setUseFreeDayBenefit] = useState(false);
+  const [pricingBreakdown, setPricingBreakdown] = useState<PricingBreakdown | null>(null);
+  const [finalAmount, setFinalAmount] = useState(0);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -66,6 +82,41 @@ const Booking = () => {
 
     fetchData();
   }, [user]);
+
+  // Check free day eligibility when vehicle or date changes
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (!selectedVehicle || !selectedDate || !user) {
+        setFreeDayEligible(false);
+        setFreeDayUsed(false);
+        return;
+      }
+
+      const { eligible, used } = await checkFreeDayEligibility(
+        selectedVehicle,
+        user.id,
+        selectedDate
+      );
+
+      setFreeDayEligible(eligible && !used);
+      setFreeDayUsed(used);
+      
+      // Reset use free day if not eligible
+      if (!eligible || used) {
+        setUseFreeDayBenefit(false);
+      }
+    };
+
+    checkEligibility();
+  }, [selectedVehicle, selectedDate, user]);
+
+  // Calculate pricing when duration or free day option changes
+  useEffect(() => {
+    const durationHours = parseInt(duration);
+    const breakdown = calculateBookingPrice(durationHours, useFreeDayBenefit);
+    setPricingBreakdown(breakdown);
+    setFinalAmount(breakdown.totalAmount);
+  }, [duration, useFreeDayBenefit]);
 
   const generateBookingCode = () => {
     const date = format(new Date(), 'yyyyMMdd');
@@ -97,7 +148,7 @@ const Booking = () => {
 
     const code = generateBookingCode();
 
-    // For now, we'll create a simple slot reference (in production, you'd select an actual available slot)
+    // Find an available slot
     const { data: slotData } = await supabase
       .from('parking_slots')
       .select('id')
@@ -127,7 +178,8 @@ const Booking = () => {
       return;
     }
 
-    const { error } = await supabase
+    // Create booking
+    const { data: bookingData, error } = await supabase
       .from('bookings')
       .insert({
         user_id: user.id,
@@ -139,17 +191,36 @@ const Booking = () => {
         end_time: endTime.toISOString(),
         booking_code: code,
         status: 'confirmed',
-      });
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Booking error:', error);
       toast.error('Failed to create booking');
-    } else {
-      setBookingCode(code);
-      setBookingSuccess(true);
-      toast.success('Booking confirmed!');
+      setIsSubmitting(false);
+      return;
     }
 
+    // Mark free day as used if applicable
+    if (useFreeDayBenefit && freeDayEligible && bookingData) {
+      await markFreeDayUsed(selectedVehicle, user.id, selectedDate, bookingData.id);
+    }
+
+    // Create payment record if amount > 0
+    if (finalAmount > 0 && bookingData) {
+      await supabase.from('payments').insert({
+        user_id: user.id,
+        booking_id: bookingData.id,
+        amount: finalAmount,
+        total_amount: finalAmount,
+        status: 'pending',
+      });
+    }
+
+    setBookingCode(code);
+    setBookingSuccess(true);
+    toast.success('Booking confirmed!');
     setIsSubmitting(false);
   };
 
@@ -167,9 +238,26 @@ const Booking = () => {
             Your parking slot has been reserved successfully.
           </p>
           <Card className="mb-6">
-            <CardContent className="py-6">
-              <p className="text-sm text-muted-foreground mb-2">Booking Code</p>
-              <p className="text-2xl font-mono font-bold text-primary">{bookingCode}</p>
+            <CardContent className="py-6 space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Booking Code</p>
+                <p className="text-2xl font-mono font-bold text-primary">{bookingCode}</p>
+              </div>
+              <div className="border-t pt-4">
+                <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
+                <p className="text-xl font-bold">
+                  {finalAmount === 0 ? (
+                    <span className="text-green-600">FREE</span>
+                  ) : (
+                    formatCurrency(finalAmount)
+                  )}
+                </p>
+                {useFreeDayBenefit && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Weekly free day benefit applied!
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
           <Button onClick={() => setBookingSuccess(false)} className="w-full">
@@ -311,8 +399,12 @@ const Booking = () => {
                       <SelectContent>
                         <SelectItem value="1">1 hour</SelectItem>
                         <SelectItem value="2">2 hours</SelectItem>
+                        <SelectItem value="3">3 hours</SelectItem>
                         <SelectItem value="4">4 hours</SelectItem>
+                        <SelectItem value="5">5 hours</SelectItem>
+                        <SelectItem value="6">6 hours</SelectItem>
                         <SelectItem value="8">8 hours</SelectItem>
+                        <SelectItem value="10">10 hours</SelectItem>
                         <SelectItem value="12">12 hours</SelectItem>
                         <SelectItem value="24">Full day</SelectItem>
                       </SelectContent>
@@ -320,12 +412,85 @@ const Booking = () => {
                   </div>
                 </div>
 
+                {/* Free Day Benefit */}
+                {selectedVehicle && selectedDate && (
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                    {freeDayEligible && !freeDayUsed ? (
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="useFreeDayBenefit"
+                          checked={useFreeDayBenefit}
+                          onCheckedChange={(checked) => setUseFreeDayBenefit(checked === true)}
+                        />
+                        <div className="space-y-1">
+                          <label
+                            htmlFor="useFreeDayBenefit"
+                            className="text-sm font-medium flex items-center gap-2 cursor-pointer"
+                          >
+                            <Gift className="w-4 h-4 text-green-600" />
+                            Use Weekly Free Day Benefit
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            You have not used your free day this week. Check to apply.
+                          </p>
+                        </div>
+                      </div>
+                    ) : freeDayUsed ? (
+                      <div className="flex items-center gap-2 text-yellow-600">
+                        <AlertTriangle className="w-4 h-4" />
+                        <p className="text-sm">
+                          Weekly free day already used for this vehicle.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Pricing Breakdown */}
+                {pricingBreakdown && (
+                  <Card className="bg-muted/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <IndianRupee className="w-4 h-4" />
+                        Pricing Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Duration</span>
+                        <span className="font-medium">{pricingBreakdown.totalHours} hour(s)</span>
+                      </div>
+                      <div className="flex justify-between text-green-600">
+                        <span>Free Hours</span>
+                        <span className="font-medium">
+                          {useFreeDayBenefit ? 'Full Day Free' : `${PRICING_INFO.FREE_HOURS_PER_DAY} hours`}
+                        </span>
+                      </div>
+                      {!useFreeDayBenefit && pricingBreakdown.chargeableHours > 0 && (
+                        <div className="flex justify-between">
+                          <span>Chargeable ({pricingBreakdown.chargeableHours} hrs × ₹{PRICING_INFO.HOURLY_RATE})</span>
+                          <span className="font-medium">{formatCurrency(pricingBreakdown.baseCharge)}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between font-semibold text-base">
+                        <span>Total Amount</span>
+                        <span className={finalAmount === 0 ? 'text-green-600' : ''}>
+                          {finalAmount === 0 ? 'FREE' : formatCurrency(finalAmount)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Note: Overstay penalty is ₹{PRICING_INFO.PENALTY_RATE}/hour if you exceed your booked time.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Button
                   onClick={handleBooking}
                   className="w-full h-12 gradient-vit"
                   disabled={isSubmitting || !selectedVehicle || !selectedZone || !selectedDate || !selectedTime}
                 >
-                  {isSubmitting ? 'Processing...' : 'Confirm Booking'}
+                  {isSubmitting ? 'Processing...' : `Confirm Booking${finalAmount > 0 ? ` - ${formatCurrency(finalAmount)}` : ' - FREE'}`}
                 </Button>
               </>
             )}

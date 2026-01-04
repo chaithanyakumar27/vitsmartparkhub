@@ -503,6 +503,51 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_free_day_usage: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          id: string
+          used_at: string
+          user_id: string
+          vehicle_id: string
+          week_start: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          used_at?: string
+          user_id: string
+          vehicle_id: string
+          week_start: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          used_at?: string
+          user_id?: string
+          vehicle_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_free_day_usage_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_free_day_usage_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           color: string | null
