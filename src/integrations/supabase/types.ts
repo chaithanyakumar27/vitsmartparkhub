@@ -592,6 +592,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_payment: {
+        Args: { _payment_id: string; _payment_method?: string }
+        Returns: {
+          amount: number
+          booking_id: string
+          created_at: string
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          tax_amount: number | null
+          total_amount: number
+          transaction_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       generate_booking_code: { Args: never; Returns: string }
       has_role: {
         Args: {
