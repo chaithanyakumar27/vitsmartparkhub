@@ -64,6 +64,7 @@ const ZoneDetails = () => {
   const navigate = useNavigate();
   const [zone, setZone] = useState<ParkingZone | null>(null);
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [reportData, setReportData] = useState<ReportData>({
@@ -173,6 +174,8 @@ const ZoneDetails = () => {
     if (!slot.is_available) return 'Occupied';
     return 'Free';
   };
+
+  const isSlotSelectable = (slot: ParkingSlot) => slot.is_available && !slot.is_reserved;
 
   // Generate placeholder slots if none exist
   const displaySlots = slots.length > 0 ? slots : Array.from(
@@ -313,8 +316,13 @@ const ZoneDetails = () => {
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded-lg ${getSlotColor(slot)} flex items-center justify-center text-white text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity`}
+                        className={`aspect-square rounded-lg ${getSlotColor(slot)} flex items-center justify-center text-white text-xs font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
+                        onClick={() => {
+                          if (isSlotSelectable(slot)) {
+                            setSelectedSlotId(slot.id);
+                          }
+                        }}
                       >
                         {slot.slot_number.split('-')[1]}
                       </div>
@@ -334,8 +342,13 @@ const ZoneDetails = () => {
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded ${getSlotColor(slot)} flex items-center justify-center text-white text-[10px] font-medium cursor-pointer hover:opacity-80 transition-opacity`}
+                        className={`aspect-square rounded ${getSlotColor(slot)} flex items-center justify-center text-white text-[10px] font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
+                        onClick={() => {
+                          if (isSlotSelectable(slot)) {
+                            setSelectedSlotId(slot.id);
+                          }
+                        }}
                       >
                         {slot.slot_number.split('-')[1]}
                       </div>
@@ -474,13 +487,16 @@ const ZoneDetails = () => {
               <Calendar className="w-12 h-12 mx-auto text-primary mb-4" />
               <h3 className="text-lg font-semibold mb-2">Book a Slot at {zone.name}</h3>
               <p className="text-muted-foreground mb-4">
-                Reserve your parking spot with our easy booking system.
+                  {selectedSlotId
+                    ? `Selected slot: ${displaySlots.find((slot) => slot.id === selectedSlotId)?.slot_number}`
+                    : 'Select a free slot from the layout first, then continue to booking.'}
               </p>
               <Button 
-                onClick={() => navigate(`/booking?zone=${zone.code}`)}
+                  onClick={() => navigate(`/booking?zone=${zone.code}&slot=${selectedSlotId}`)}
+                  disabled={!selectedSlotId}
                 className="gradient-vit"
               >
-                Proceed to Booking
+                  {selectedSlotId ? 'Book Selected Slot' : 'Select a Free Slot First'}
               </Button>
             </CardContent>
           </Card>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { CreditCard, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Payment {
   id: string;
@@ -27,6 +28,7 @@ const Payments = () => {
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPayments = async () => {
@@ -64,6 +66,43 @@ const Payments = () => {
       default:
         return <Clock className="w-4 h-4" />;
     }
+  };
+
+  const handleCompletePayment = async (paymentId: string) => {
+    if (!user) return;
+
+    setProcessingPaymentId(paymentId);
+
+    const { error } = await supabase
+      .from('payments')
+      .update({
+        status: 'completed',
+        payment_method: 'manual',
+        paid_at: new Date().toISOString(),
+      })
+      .eq('id', paymentId)
+      .eq('user_id', user.id)
+      .eq('status', 'pending');
+
+    if (error) {
+      toast.error('Payment could not be completed');
+      setProcessingPaymentId(null);
+      return;
+    }
+
+    setPayments((current) =>
+      current.map((payment) =>
+        payment.id === paymentId
+          ? {
+              ...payment,
+              status: 'completed',
+              payment_method: 'manual',
+            }
+          : payment
+      )
+    );
+    toast.success('Payment completed successfully');
+    setProcessingPaymentId(null);
   };
 
   return (
@@ -112,6 +151,16 @@ const Payments = () => {
                         {getStatusIcon(payment.status)}
                         <span className="text-sm capitalize">{payment.status}</span>
                       </div>
+                      {payment.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => handleCompletePayment(payment.id)}
+                          disabled={processingPaymentId === payment.id}
+                        >
+                          {processingPaymentId === payment.id ? 'Processing...' : 'Pay Now'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t flex items-center justify-between text-sm text-muted-foreground">
