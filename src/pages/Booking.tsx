@@ -374,7 +374,6 @@ const Booking = () => {
                     <Car className="w-4 h-4" />
                     Select Vehicle
                   </Label>
-                  <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
                   <Select value={selectedVehicle} onValueChange={(value) => {
                     setSelectedVehicle(value);
                     setSelectedSlot('');
