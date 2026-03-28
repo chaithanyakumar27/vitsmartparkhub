@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,20 +41,43 @@ interface ParkingZone {
   total_bike_slots: number;
 }
 
+interface ParkingSlot {
+  id: string;
+  slot_number: string;
+  slot_type: 'car' | 'motorcycle';
+  is_available: boolean | null;
+  is_reserved: boolean | null;
+}
+
+const getRequiredSlotType = (vehicleType: VehicleType): 'car' | 'motorcycle' =>
+  vehicleType === 'car' ? 'car' : 'motorcycle';
+
+const buildBookingDateTime = (date: Date, time: string) => {
+  const bookingDateTime = new Date(date);
+  const [hours, minutes] = time.split(':');
+  bookingDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+  return bookingDateTime;
+};
+
 const Booking = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedZone = searchParams.get('zone');
+  const preselectedSlot = searchParams.get('slot');
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [zones, setZones] = useState<ParkingZone[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<ParkingSlot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSlotsLoading, setIsSlotsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingCode, setBookingCode] = useState('');
 
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [selectedZone, setSelectedZone] = useState(preselectedZone || '');
+  const [selectedSlot, setSelectedSlot] = useState(preselectedSlot || '');
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState('');
   const [duration, setDuration] = useState('1');
@@ -82,6 +105,76 @@ const Booking = () => {
 
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      if (!selectedZone || !selectedVehicle || !selectedDate || !selectedTime) {
+        setAvailableSlots([]);
+        return;
+      }
+
+      const zone = zones.find((item) => item.code === selectedZone);
+      const vehicle = vehicles.find((item) => item.id === selectedVehicle);
+
+      if (!zone || !vehicle) {
+        setAvailableSlots([]);
+        return;
+      }
+
+      setIsSlotsLoading(true);
+
+      const startTime = buildBookingDateTime(selectedDate, selectedTime);
+      const endTime = new Date(startTime);
+      endTime.setHours(endTime.getHours() + parseInt(duration));
+
+      const requiredSlotType = getRequiredSlotType(vehicle.vehicle_type);
+
+      const [slotsResponse, bookingsResponse] = await Promise.all([
+        supabase
+          .from('parking_slots')
+          .select('id, slot_number, slot_type, is_available, is_reserved')
+          .eq('zone_id', zone.id)
+          .eq('slot_type', requiredSlotType)
+          .order('slot_number'),
+        supabase
+          .from('bookings')
+          .select('slot_id, start_time, end_time, status')
+          .eq('zone_id', zone.id)
+          .in('status', ['pending', 'confirmed', 'active'])
+          .gte('booking_date', format(selectedDate, 'yyyy-MM-dd'))
+          .lte('booking_date', format(selectedDate, 'yyyy-MM-dd')),
+      ]);
+
+      if (slotsResponse.error) {
+        toast.error('Failed to load slots');
+        setAvailableSlots([]);
+        setIsSlotsLoading(false);
+        return;
+      }
+
+      const blockedSlotIds = new Set(
+        (bookingsResponse.data || [])
+          .filter((booking) => {
+            const bookingStart = new Date(booking.start_time);
+            const bookingEnd = booking.end_time ? new Date(booking.end_time) : bookingStart;
+            return bookingStart < endTime && bookingEnd > startTime;
+          })
+          .map((booking) => booking.slot_id)
+      );
+
+      const nextSlots = (slotsResponse.data || []).filter(
+        (slot) => !blockedSlotIds.has(slot.id)
+      );
+
+      setAvailableSlots(nextSlots);
+      if (selectedSlot && !nextSlots.some((slot) => slot.id === selectedSlot)) {
+        setSelectedSlot('');
+      }
+      setIsSlotsLoading(false);
+    };
+
+    fetchAvailableSlots();
+  }, [duration, selectedDate, selectedSlot, selectedTime, selectedVehicle, selectedZone, vehicles, zones]);
 
   // Check free day eligibility when vehicle or date changes
   useEffect(() => {
@@ -125,7 +218,7 @@ const Booking = () => {
   };
 
   const handleBooking = async () => {
-    if (!user || !selectedVehicle || !selectedZone || !selectedDate || !selectedTime) {
+    if (!user || !selectedVehicle || !selectedZone || !selectedSlot || !selectedDate || !selectedTime) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -139,40 +232,15 @@ const Booking = () => {
       return;
     }
 
-    const startTime = new Date(selectedDate);
-    const [hours, minutes] = selectedTime.split(':');
-    startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    const startTime = buildBookingDateTime(selectedDate, selectedTime);
 
     const endTime = new Date(startTime);
     endTime.setHours(endTime.getHours() + parseInt(duration));
 
     const code = generateBookingCode();
 
-    // Find an available slot
-    const { data: slotData } = await supabase
-      .from('parking_slots')
-      .select('id')
-      .eq('zone_id', zone.id)
-      .eq('is_available', true)
-      .limit(1)
-      .maybeSingle();
-
-    // If no slots exist, create one temporarily
-    let slotId = slotData?.id;
-    if (!slotId) {
-      const { data: newSlot } = await supabase
-        .from('parking_slots')
-        .insert({
-          zone_id: zone.id,
-          slot_number: `${zone.code}-001`,
-          slot_type: vehicles.find(v => v.id === selectedVehicle)?.vehicle_type || 'car',
-        })
-        .select('id')
-        .single();
-      slotId = newSlot?.id;
-    }
-
-    if (!slotId) {
+    const slotExists = availableSlots.some((slot) => slot.id === selectedSlot);
+    if (!slotExists) {
       toast.error('No parking slots available');
       setIsSubmitting(false);
       return;
@@ -185,7 +253,7 @@ const Booking = () => {
         user_id: user.id,
         vehicle_id: selectedVehicle,
         zone_id: zone.id,
-        slot_id: slotId,
+        slot_id: selectedSlot,
         booking_date: format(selectedDate, 'yyyy-MM-dd'),
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
@@ -197,7 +265,7 @@ const Booking = () => {
 
     if (error) {
       console.error('Booking error:', error);
-      toast.error('Failed to create booking');
+      toast.error(error.message || 'Failed to create booking');
       setIsSubmitting(false);
       return;
     }
@@ -263,6 +331,11 @@ const Booking = () => {
           <Button onClick={() => setBookingSuccess(false)} className="w-full">
             Book Another Slot
           </Button>
+          {finalAmount > 0 && (
+            <Button variant="outline" onClick={() => navigate('/payments')} className="w-full mt-3">
+              Go to Payments
+            </Button>
+          )}
         </div>
       </AppLayout>
     );
@@ -302,6 +375,10 @@ const Booking = () => {
                     Select Vehicle
                   </Label>
                   <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                  <Select value={selectedVehicle} onValueChange={(value) => {
+                    setSelectedVehicle(value);
+                    setSelectedSlot('');
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose your vehicle" />
                     </SelectTrigger>
@@ -321,7 +398,10 @@ const Booking = () => {
                     <MapPin className="w-4 h-4" />
                     Parking Zone
                   </Label>
-                  <Select value={selectedZone} onValueChange={setSelectedZone}>
+                  <Select value={selectedZone} onValueChange={(value) => {
+                    setSelectedZone(value);
+                    setSelectedSlot('');
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose parking zone" />
                     </SelectTrigger>
@@ -333,6 +413,42 @@ const Booking = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Slot Selection */}
+                <div className="space-y-2">
+                  <Label>Select Slot</Label>
+                  {!selectedVehicle || !selectedZone || !selectedDate || !selectedTime ? (
+                    <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      Choose vehicle, zone, date, and start time to load available slots.
+                    </div>
+                  ) : isSlotsLoading ? (
+                    <div className="flex items-center justify-center h-24 rounded-lg border border-border bg-muted/30">
+                      <div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    </div>
+                  ) : availableSlots.length === 0 ? (
+                    <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      No slots are available for the selected time. Try another slot time or zone.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {availableSlots.map((slot) => (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => setSelectedSlot(slot.id)}
+                          className={cn(
+                            'rounded-lg border px-3 py-3 text-sm font-medium transition-all',
+                            selectedSlot === slot.id
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border bg-card text-card-foreground hover:border-primary/40 hover:bg-accent'
+                          )}
+                        >
+                          {slot.slot_number}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Date Selection */}
@@ -488,7 +604,7 @@ const Booking = () => {
                 <Button
                   onClick={handleBooking}
                   className="w-full h-12 gradient-vit"
-                  disabled={isSubmitting || !selectedVehicle || !selectedZone || !selectedDate || !selectedTime}
+                  disabled={isSubmitting || !selectedVehicle || !selectedZone || !selectedSlot || !selectedDate || !selectedTime}
                 >
                   {isSubmitting ? 'Processing...' : `Confirm Booking${finalAmount > 0 ? ` - ${formatCurrency(finalAmount)}` : ' - FREE'}`}
                 </Button>
