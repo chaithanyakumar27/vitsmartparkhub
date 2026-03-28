@@ -44,7 +44,7 @@ interface ParkingZone {
 interface ParkingSlot {
   id: string;
   slot_number: string;
-  slot_type: 'car' | 'motorcycle';
+  slot_type: VehicleType;
   is_available: boolean | null;
   is_reserved: boolean | null;
 }
