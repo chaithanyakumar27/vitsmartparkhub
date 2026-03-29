@@ -275,14 +275,16 @@ const Booking = () => {
       await markFreeDayUsed(selectedVehicle, user.id, selectedDate, bookingData.id);
     }
 
-    // Create payment record if amount > 0
+    // Create payment record if amount > 0 (auto-completed)
     if (finalAmount > 0 && bookingData) {
       await supabase.from('payments').insert({
         user_id: user.id,
         booking_id: bookingData.id,
         amount: finalAmount,
         total_amount: finalAmount,
-        status: 'pending',
+        status: 'completed',
+        payment_method: 'direct',
+        paid_at: new Date().toISOString(),
       });
     }
 
