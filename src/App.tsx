@@ -23,6 +23,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import ZoneDetails from "./pages/ZoneDetails";
+import VehicleDetection from "./pages/VehicleDetection";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,7 @@ const AppRoutes = () => {
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+      <Route path="/vehicle-detection" element={<StaffRoute><VehicleDetection /></StaffRoute>} />
       
       {/* Staff Routes */}
       <Route path="/entry-exit" element={<StaffRoute><EntryExit /></StaffRoute>} />
