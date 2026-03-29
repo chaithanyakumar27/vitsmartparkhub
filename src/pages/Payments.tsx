@@ -73,19 +73,14 @@ const Payments = () => {
 
     setProcessingPaymentId(paymentId);
 
-    const { error } = await supabase
-      .from('payments')
-      .update({
-        status: 'completed',
-        payment_method: 'manual',
-        paid_at: new Date().toISOString(),
-      })
-      .eq('id', paymentId)
-      .eq('user_id', user.id)
-      .eq('status', 'pending');
+    const { data, error } = await supabase.rpc('complete_payment', {
+      _payment_id: paymentId,
+      _payment_method: 'manual',
+    });
 
     if (error) {
-      toast.error('Payment could not be completed');
+      console.error('Payment error:', error);
+      toast.error('Payment could not be completed: ' + error.message);
       setProcessingPaymentId(null);
       return;
     }
@@ -101,7 +96,7 @@ const Payments = () => {
           : payment
       )
     );
-    toast.success('Payment completed successfully');
+    toast.success('Payment completed successfully!');
     setProcessingPaymentId(null);
   };
 
