@@ -136,6 +136,39 @@ export type Database = {
           },
         ]
       }
+      car_dimensions: {
+        Row: {
+          category: string
+          created_at: string
+          height_cm: number | null
+          id: string
+          length_cm: number
+          make: string | null
+          model: string | null
+          width_cm: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          height_cm?: number | null
+          id?: string
+          length_cm: number
+          make?: string | null
+          model?: string | null
+          width_cm: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          height_cm?: number | null
+          id?: string
+          length_cm?: number
+          make?: string | null
+          model?: string | null
+          width_cm?: number
+        }
+        Relationships: []
+      }
       entry_exit_logs: {
         Row: {
           booking_id: string
@@ -249,8 +282,10 @@ export type Database = {
           is_available: boolean | null
           is_handicap: boolean | null
           is_reserved: boolean | null
+          slot_length_cm: number | null
           slot_number: string
           slot_type: Database["public"]["Enums"]["vehicle_type"]
+          slot_width_cm: number | null
           zone_id: string
         }
         Insert: {
@@ -260,8 +295,10 @@ export type Database = {
           is_available?: boolean | null
           is_handicap?: boolean | null
           is_reserved?: boolean | null
+          slot_length_cm?: number | null
           slot_number: string
           slot_type: Database["public"]["Enums"]["vehicle_type"]
+          slot_width_cm?: number | null
           zone_id: string
         }
         Update: {
@@ -271,8 +308,10 @@ export type Database = {
           is_available?: boolean | null
           is_handicap?: boolean | null
           is_reserved?: boolean | null
+          slot_length_cm?: number | null
           slot_number?: string
           slot_type?: Database["public"]["Enums"]["vehicle_type"]
+          slot_width_cm?: number | null
           zone_id?: string
         }
         Relationships: [
