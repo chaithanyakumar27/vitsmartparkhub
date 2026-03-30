@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
   { label: 'Parking Zones', href: '/zones', icon: MapPin },
   { label: 'Book Parking', href: '/booking', icon: Calendar },
   { label: 'Entry/Exit', href: '/entry-exit', icon: LogIn, staffOnly: true },
-  { label: 'Vehicle Detection', href: '/vehicle-detection', icon: ScanEye, staffOnly: true },
+  { label: 'Vehicle Detection', href: '/vehicle-detection', icon: ScanEye },
   { label: 'Payments', href: '/payments', icon: CreditCard },
   { label: 'Notifications', href: '/notifications', icon: Bell },
   { label: 'History', href: '/history', icon: History },
