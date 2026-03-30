@@ -124,7 +124,7 @@ const AppRoutes = () => {
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
-      <Route path="/vehicle-detection" element={<StaffRoute><VehicleDetection /></StaffRoute>} />
+      <Route path="/vehicle-detection" element={<ProtectedRoute><VehicleDetection /></ProtectedRoute>} />
       
       {/* Staff Routes */}
       <Route path="/entry-exit" element={<StaffRoute><EntryExit /></StaffRoute>} />
