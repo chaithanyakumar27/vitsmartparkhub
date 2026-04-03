@@ -46,7 +46,7 @@ interface ParkingZone {
 }
 
 const Dashboard = () => {
-  const { profile, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const navigate = useNavigate();
   const [zones, setZones] = useState<ParkingZone[]>([]);
   const [stats, setStats] = useState({
