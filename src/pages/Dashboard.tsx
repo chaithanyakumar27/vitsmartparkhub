@@ -46,7 +46,7 @@ interface ParkingZone {
 }
 
 const Dashboard = () => {
-  const { profile, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
   const navigate = useNavigate();
   const [zones, setZones] = useState<ParkingZone[]>([]);
   const [stats, setStats] = useState({
@@ -58,19 +58,30 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch parking zones
-      const { data: zonesData } = await supabase
-        .from('parking_zones')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (zonesData) {
-        setZones(zonesData);
-      }
+      if (!user) return;
+
+      const [zonesRes, vehiclesRes, bookingsRes, paymentsRes] = await Promise.all([
+        supabase.from('parking_zones').select('*').eq('is_active', true),
+        supabase.from('vehicles').select('id', { count: 'exact' }).eq('user_id', user.id),
+        supabase.from('bookings').select('id, status', { count: 'exact' }).eq('user_id', user.id),
+        supabase.from('payments').select('id, total_amount, status').eq('user_id', user.id).eq('status', 'pending'),
+      ]);
+
+      if (zonesRes.data) setZones(zonesRes.data);
+
+      const activeBookings = bookingsRes.data?.filter(b => b.status === 'active' || b.status === 'confirmed').length || 0;
+      const pendingTotal = paymentsRes.data?.reduce((sum, p) => sum + Number(p.total_amount), 0) || 0;
+
+      setStats({
+        totalBookings: bookingsRes.count || 0,
+        activeBookings,
+        totalVehicles: vehiclesRes.count || 0,
+        pendingPayments: pendingTotal,
+      });
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   if (isLoading) {
     return (

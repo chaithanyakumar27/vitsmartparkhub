@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Video, Upload, Square, CheckCircle, XCircle, AlertTriangle,
-  Cpu, Ruler, MapPin, Send, RotateCcw, Eye, EyeOff, RefreshCw,
+  Cpu, Ruler, MapPin, RotateCcw, Eye, EyeOff, RefreshCw,
   Layers, Activity, Crosshair, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -80,9 +80,6 @@ const VehicleDetection = () => {
   const [slotWidth, setSlotWidth] = useState('250');
   const [altSlots, setAltSlots] = useState<string[]>([]);
 
-  // SMS
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [isSendingSms, setIsSendingSms] = useState(false);
 
   useEffect(() => {
     supabase.from('car_dimensions').select('*').order('category, make, model')
@@ -425,21 +422,6 @@ const VehicleDetection = () => {
     } else { setAltSlots([]); }
   };
 
-  // SMS
-  const sendSmsAlert = async () => {
-    if (!ownerPhone) { toast.error('Enter owner phone number'); return; }
-    setIsSendingSms(true);
-    try {
-      const message = 'Alert: Your vehicle is outside the parking boundary. Please reposition immediately.';
-      const { error } = await supabase.functions.invoke('send-parking-sms', {
-        body: { phone: ownerPhone, message },
-      });
-      if (error) throw error;
-      toast.success('SMS alert sent to ' + ownerPhone);
-    } catch (err: any) {
-      toast.error('Failed to send SMS. Check Twilio setup.');
-    } finally { setIsSendingSms(false); }
-  };
 
   const clearAll = () => {
     setBoundaries([]);
@@ -733,26 +715,6 @@ const VehicleDetection = () => {
               </CardContent>
             </Card>
 
-            {/* SMS Alert */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Send className="w-4 h-4" /> SMS Alert
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Owner Phone (E.164)</Label>
-                  <Input placeholder="+919876543210" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} />
-                </div>
-                <Button onClick={sendSmsAlert} disabled={isSendingSms || !hasViolations} variant="destructive" className="w-full" size="sm">
-                  {isSendingSms ? 'Sending...' : 'Send Alert SMS'}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  SMS enabled when violations detected. Requires Twilio setup.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
