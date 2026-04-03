@@ -422,21 +422,6 @@ const VehicleDetection = () => {
     } else { setAltSlots([]); }
   };
 
-  // SMS
-  const sendSmsAlert = async () => {
-    if (!ownerPhone) { toast.error('Enter owner phone number'); return; }
-    setIsSendingSms(true);
-    try {
-      const message = 'Alert: Your vehicle is outside the parking boundary. Please reposition immediately.';
-      const { error } = await supabase.functions.invoke('send-parking-sms', {
-        body: { phone: ownerPhone, message },
-      });
-      if (error) throw error;
-      toast.success('SMS alert sent to ' + ownerPhone);
-    } catch (err: any) {
-      toast.error('Failed to send SMS. Check Twilio setup.');
-    } finally { setIsSendingSms(false); }
-  };
 
   const clearAll = () => {
     setBoundaries([]);
