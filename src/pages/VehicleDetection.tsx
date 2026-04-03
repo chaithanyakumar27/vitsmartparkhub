@@ -715,26 +715,6 @@ const VehicleDetection = () => {
               </CardContent>
             </Card>
 
-            {/* SMS Alert */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Send className="w-4 h-4" /> SMS Alert
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Owner Phone (E.164)</Label>
-                  <Input placeholder="+919876543210" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} />
-                </div>
-                <Button onClick={sendSmsAlert} disabled={isSendingSms || !hasViolations} variant="destructive" className="w-full" size="sm">
-                  {isSendingSms ? 'Sending...' : 'Send Alert SMS'}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  SMS enabled when violations detected. Requires Twilio setup.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
