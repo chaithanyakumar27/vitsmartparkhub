@@ -162,12 +162,13 @@ const Booking = () => {
           .map((booking) => booking.slot_id)
       );
 
-      const nextSlots = (slotsResponse.data || []).filter(
-        (slot) => !blockedSlotIds.has(slot.id)
-      );
+      const allSlots = (slotsResponse.data || []).map((slot) => ({
+        ...slot,
+        is_booked: blockedSlotIds.has(slot.id),
+      }));
 
-      setAvailableSlots(nextSlots);
-      if (selectedSlot && !nextSlots.some((slot) => slot.id === selectedSlot)) {
+      setAvailableSlots(allSlots);
+      if (selectedSlot && blockedSlotIds.has(selectedSlot)) {
         setSelectedSlot('');
       }
       setIsSlotsLoading(false);
