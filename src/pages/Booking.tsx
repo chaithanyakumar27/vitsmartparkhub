@@ -47,6 +47,7 @@ interface ParkingSlot {
   slot_type: VehicleType;
   is_available: boolean | null;
   is_reserved: boolean | null;
+  is_booked?: boolean;
 }
 
 const getRequiredSlotType = (vehicleType: VehicleType): 'car' | 'motorcycle' =>
