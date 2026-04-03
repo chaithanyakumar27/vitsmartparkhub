@@ -3,10 +3,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Calendar, MapPin, Car, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, MapPin, Car, Clock, XCircle } from 'lucide-react';
+import { format, isPast } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Booking {
   id: string;
@@ -42,41 +55,85 @@ const History = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const fetchBookings = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        vehicles (registration_number, make, model),
+        parking_zones (name, code)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      // Auto-complete expired bookings
+      const now = new Date();
+      const updated: Booking[] = [];
+
+      for (const booking of data as Booking[]) {
+        if (
+          (booking.status === 'confirmed' || booking.status === 'active') &&
+          booking.end_time &&
+          isPast(new Date(booking.end_time))
+        ) {
+          // Mark as completed in DB
+          await supabase
+            .from('bookings')
+            .update({ status: 'completed' })
+            .eq('id', booking.id);
+          updated.push({ ...booking, status: 'completed' });
+        } else {
+          updated.push(booking);
+        }
+      }
+
+      setBookings(updated);
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          vehicles (registration_number, make, model),
-          parking_zones (name, code)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setBookings(data as Booking[]);
-      }
-      setIsLoading(false);
-    };
-
     fetchBookings();
   }, [user]);
 
-  const filteredBookings = bookings.filter(booking => {
+  const handleCancelBooking = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', bookingId);
+
+    if (error) {
+      toast.error('Failed to cancel booking: ' + error.message);
+    } else {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+      );
+      toast.success('Booking cancelled successfully');
+    }
+    setCancellingId(null);
+  };
+
+  const filteredBookings = bookings.filter((booking) => {
     if (filter === 'all') return true;
+    if (filter === 'active') return booking.status === 'active' || booking.status === 'confirmed' || booking.status === 'pending';
     return booking.status === filter;
   });
+
+  const canCancel = (status: string) =>
+    status === 'pending' || status === 'confirmed' || status === 'active';
 
   return (
     <AppLayout title="Parking History">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <p className="text-muted-foreground mb-4">
-            View your past parking reservations and activities
+            View your parking reservations and activities
           </p>
           <Tabs defaultValue="all" onValueChange={setFilter}>
             <TabsList>
@@ -98,7 +155,7 @@ const History = () => {
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">No bookings found</h3>
               <p className="text-muted-foreground">
-                {filter === 'all' 
+                {filter === 'all'
                   ? "You haven't made any parking reservations yet."
                   : `No ${filter} bookings found.`}
               </p>
@@ -121,6 +178,40 @@ const History = () => {
                         {format(new Date(booking.created_at), 'PPp')}
                       </p>
                     </div>
+
+                    {canCancel(booking.status) && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                            disabled={cancellingId === booking.id}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            {cancellingId === booking.id ? 'Cancelling...' : 'Cancel'}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to cancel booking <strong>{booking.booking_code}</strong>?
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Yes, Cancel
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -138,7 +229,10 @@ const History = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground" />
-                      <span>{format(new Date(booking.start_time), 'p')}</span>
+                      <span>
+                        {format(new Date(booking.start_time), 'p')}
+                        {booking.end_time && ` - ${format(new Date(booking.end_time), 'p')}`}
+                      </span>
                     </div>
                   </div>
 
