@@ -189,18 +189,20 @@ const ZoneDetails = () => {
   }, [zone, reportPeriod]);
 
   const getSlotColor = (slot: ParkingSlot) => {
+    if (bookedSlotIds.has(slot.id)) return 'bg-destructive';
     if (slot.is_reserved) return 'bg-yellow-500';
     if (!slot.is_available) return 'bg-destructive';
     return 'bg-green-500';
   };
 
   const getSlotStatus = (slot: ParkingSlot) => {
+    if (bookedSlotIds.has(slot.id)) return 'Booked';
     if (slot.is_reserved) return 'Reserved';
     if (!slot.is_available) return 'Occupied';
     return 'Free';
   };
 
-  const isSlotSelectable = (slot: ParkingSlot) => slot.is_available && !slot.is_reserved;
+  const isSlotSelectable = (slot: ParkingSlot) => slot.is_available && !slot.is_reserved && !bookedSlotIds.has(slot.id);
 
   // Generate placeholder slots if none exist
   const displaySlots = slots.length > 0 ? slots : Array.from(
@@ -209,15 +211,15 @@ const ZoneDetails = () => {
       id: `placeholder-${i}`,
       slot_number: `${zone?.code || 'Z'}-${String(i + 1).padStart(3, '0')}`,
       slot_type: i < (zone?.total_car_slots || 10) ? 'car' : 'motorcycle',
-      is_available: Math.random() > 0.3,
-      is_reserved: Math.random() > 0.9,
+      is_available: true,
+      is_reserved: false,
       floor_level: 0,
     })
   );
 
-  const freeSlots = displaySlots.filter(s => s.is_available && !s.is_reserved).length;
-  const occupiedSlots = displaySlots.filter(s => !s.is_available).length;
-  const reservedSlots = displaySlots.filter(s => s.is_reserved).length;
+  const freeSlots = displaySlots.filter(s => s.is_available && !s.is_reserved && !bookedSlotIds.has(s.id)).length;
+  const occupiedSlots = displaySlots.filter(s => !s.is_available || bookedSlotIds.has(s.id)).length;
+  const reservedSlots = displaySlots.filter(s => s.is_reserved && !bookedSlotIds.has(s.id)).length;
 
   if (isLoading) {
     return (
