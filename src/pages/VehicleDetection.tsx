@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Video, Upload, Square, CheckCircle, XCircle, AlertTriangle,
-  Cpu, Ruler, MapPin, Send, RotateCcw, Eye, EyeOff, RefreshCw,
+  Cpu, Ruler, MapPin, RotateCcw, Eye, EyeOff, RefreshCw,
   Layers, Activity, Crosshair, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
