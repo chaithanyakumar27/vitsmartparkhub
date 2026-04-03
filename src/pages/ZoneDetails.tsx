@@ -309,21 +309,40 @@ const ZoneDetails = () => {
         <TabsContent value="slots">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Grid3X3 className="w-5 h-5" />
-                Parking Slots Layout
-              </CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Grid3X3 className="w-5 h-5" />
+                  Parking Slots Layout
+                </CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      {format(selectedDate, 'PPP')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {/* Legend */}
-              <div className="flex items-center gap-6 mb-6 pb-4 border-b">
+              <div className="flex items-center gap-6 mb-6 pb-4 border-b flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-green-500" />
                   <span className="text-sm">Free</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-destructive" />
-                  <span className="text-sm">Occupied</span>
+                  <span className="text-sm">Booked / Occupied</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-yellow-500" />
@@ -337,13 +356,13 @@ const ZoneDetails = () => {
                   <Car className="w-4 h-4" />
                   Car Parking ({zone.total_car_slots} slots)
                 </h3>
-                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {displaySlots
                     .filter(s => s.slot_type === 'car')
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded-lg ${getSlotColor(slot)} flex items-center justify-center text-white text-xs font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                        className={`rounded-lg ${getSlotColor(slot)} flex flex-col items-center justify-center text-white text-xs font-medium p-2 transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
                         onClick={() => {
                           if (isSlotSelectable(slot)) {
@@ -351,7 +370,8 @@ const ZoneDetails = () => {
                           }
                         }}
                       >
-                        {slot.slot_number.split('-')[1]}
+                        <span className="font-bold">{slot.slot_number}</span>
+                        <span className="text-[10px] opacity-80">{getSlotStatus(slot)}</span>
                       </div>
                     ))}
                 </div>
@@ -363,13 +383,13 @@ const ZoneDetails = () => {
                   <Bike className="w-4 h-4" />
                   Two-Wheeler Parking ({zone.total_bike_slots} slots)
                 </h3>
-                <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-12 gap-1.5">
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
                   {displaySlots
                     .filter(s => s.slot_type !== 'car')
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded ${getSlotColor(slot)} flex items-center justify-center text-white text-[10px] font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                        className={`rounded ${getSlotColor(slot)} flex flex-col items-center justify-center text-white text-[10px] font-medium p-1.5 transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
                         onClick={() => {
                           if (isSlotSelectable(slot)) {
@@ -377,7 +397,8 @@ const ZoneDetails = () => {
                           }
                         }}
                       >
-                        {slot.slot_number.split('-')[1]}
+                        <span className="font-bold">{slot.slot_number}</span>
+                        <span className="text-[9px] opacity-80">{getSlotStatus(slot)}</span>
                       </div>
                     ))}
                 </div>
