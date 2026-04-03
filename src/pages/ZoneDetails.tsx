@@ -69,6 +69,8 @@ const ZoneDetails = () => {
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [bookedSlotIds, setBookedSlotIds] = useState<Set<string>>(new Set());
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [reportData, setReportData] = useState<ReportData>({
     totalBookings: 0,
