@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { 
-  MapPin, Car, Bike, Grid3X3, BarChart3, Calendar,
+  MapPin, Car, Bike, Grid3X3, BarChart3, Calendar as CalendarIcon,
   TrendingUp, Users, DollarSign, Clock
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
@@ -66,6 +69,8 @@ const ZoneDetails = () => {
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [bookedSlotIds, setBookedSlotIds] = useState<Set<string>>(new Set());
   const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [reportData, setReportData] = useState<ReportData>({
     totalBookings: 0,
@@ -109,6 +114,26 @@ const ZoneDetails = () => {
 
     fetchZoneData();
   }, [code, navigate]);
+
+  // Fetch bookings for selected date to determine slot availability
+  useEffect(() => {
+    const fetchBookingsForDate = async () => {
+      if (!zone) return;
+
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('slot_id')
+        .eq('zone_id', zone.id)
+        .eq('booking_date', dateStr)
+        .in('status', ['pending', 'confirmed', 'active']);
+
+      const ids = new Set((bookings || []).map(b => b.slot_id));
+      setBookedSlotIds(ids);
+    };
+
+    fetchBookingsForDate();
+  }, [zone, selectedDate]);
 
   useEffect(() => {
     const fetchReportData = async () => {
@@ -164,18 +189,20 @@ const ZoneDetails = () => {
   }, [zone, reportPeriod]);
 
   const getSlotColor = (slot: ParkingSlot) => {
+    if (bookedSlotIds.has(slot.id)) return 'bg-destructive';
     if (slot.is_reserved) return 'bg-yellow-500';
     if (!slot.is_available) return 'bg-destructive';
     return 'bg-green-500';
   };
 
   const getSlotStatus = (slot: ParkingSlot) => {
+    if (bookedSlotIds.has(slot.id)) return 'Booked';
     if (slot.is_reserved) return 'Reserved';
     if (!slot.is_available) return 'Occupied';
     return 'Free';
   };
 
-  const isSlotSelectable = (slot: ParkingSlot) => slot.is_available && !slot.is_reserved;
+  const isSlotSelectable = (slot: ParkingSlot) => slot.is_available && !slot.is_reserved && !bookedSlotIds.has(slot.id);
 
   // Generate placeholder slots if none exist
   const displaySlots = slots.length > 0 ? slots : Array.from(
@@ -184,15 +211,15 @@ const ZoneDetails = () => {
       id: `placeholder-${i}`,
       slot_number: `${zone?.code || 'Z'}-${String(i + 1).padStart(3, '0')}`,
       slot_type: i < (zone?.total_car_slots || 10) ? 'car' : 'motorcycle',
-      is_available: Math.random() > 0.3,
-      is_reserved: Math.random() > 0.9,
+      is_available: true,
+      is_reserved: false,
       floor_level: 0,
     })
   );
 
-  const freeSlots = displaySlots.filter(s => s.is_available && !s.is_reserved).length;
-  const occupiedSlots = displaySlots.filter(s => !s.is_available).length;
-  const reservedSlots = displaySlots.filter(s => s.is_reserved).length;
+  const freeSlots = displaySlots.filter(s => s.is_available && !s.is_reserved && !bookedSlotIds.has(s.id)).length;
+  const occupiedSlots = displaySlots.filter(s => !s.is_available || bookedSlotIds.has(s.id)).length;
+  const reservedSlots = displaySlots.filter(s => s.is_reserved && !bookedSlotIds.has(s.id)).length;
 
   if (isLoading) {
     return (
@@ -273,7 +300,7 @@ const ZoneDetails = () => {
             Reports
           </TabsTrigger>
           <TabsTrigger value="booking" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
+            <CalendarIcon className="w-4 h-4" />
             Book Now
           </TabsTrigger>
         </TabsList>
@@ -282,21 +309,40 @@ const ZoneDetails = () => {
         <TabsContent value="slots">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Grid3X3 className="w-5 h-5" />
-                Parking Slots Layout
-              </CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Grid3X3 className="w-5 h-5" />
+                  Parking Slots Layout
+                </CardTitle>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      {format(selectedDate, 'PPP')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {/* Legend */}
-              <div className="flex items-center gap-6 mb-6 pb-4 border-b">
+              <div className="flex items-center gap-6 mb-6 pb-4 border-b flex-wrap">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-green-500" />
                   <span className="text-sm">Free</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-destructive" />
-                  <span className="text-sm">Occupied</span>
+                  <span className="text-sm">Booked / Occupied</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-yellow-500" />
@@ -310,13 +356,13 @@ const ZoneDetails = () => {
                   <Car className="w-4 h-4" />
                   Car Parking ({zone.total_car_slots} slots)
                 </h3>
-                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {displaySlots
                     .filter(s => s.slot_type === 'car')
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded-lg ${getSlotColor(slot)} flex items-center justify-center text-white text-xs font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                        className={`rounded-lg ${getSlotColor(slot)} flex flex-col items-center justify-center text-white text-xs font-medium p-2 transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
                         onClick={() => {
                           if (isSlotSelectable(slot)) {
@@ -324,7 +370,8 @@ const ZoneDetails = () => {
                           }
                         }}
                       >
-                        {slot.slot_number.split('-')[1]}
+                        <span className="font-bold">{slot.slot_number}</span>
+                        <span className="text-[10px] opacity-80">{getSlotStatus(slot)}</span>
                       </div>
                     ))}
                 </div>
@@ -336,13 +383,13 @@ const ZoneDetails = () => {
                   <Bike className="w-4 h-4" />
                   Two-Wheeler Parking ({zone.total_bike_slots} slots)
                 </h3>
-                <div className="grid grid-cols-6 sm:grid-cols-10 md:grid-cols-12 gap-1.5">
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
                   {displaySlots
                     .filter(s => s.slot_type !== 'car')
                     .map((slot) => (
                       <div
                         key={slot.id}
-                        className={`aspect-square rounded ${getSlotColor(slot)} flex items-center justify-center text-white text-[10px] font-medium transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                        className={`rounded ${getSlotColor(slot)} flex flex-col items-center justify-center text-white text-[10px] font-medium p-1.5 transition-all ${isSlotSelectable(slot) ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-80'} ${selectedSlotId === slot.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                         title={`${slot.slot_number} - ${getSlotStatus(slot)}`}
                         onClick={() => {
                           if (isSlotSelectable(slot)) {
@@ -350,7 +397,8 @@ const ZoneDetails = () => {
                           }
                         }}
                       >
-                        {slot.slot_number.split('-')[1]}
+                        <span className="font-bold">{slot.slot_number}</span>
+                        <span className="text-[9px] opacity-80">{getSlotStatus(slot)}</span>
                       </div>
                     ))}
                 </div>
@@ -399,7 +447,7 @@ const ZoneDetails = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
-                        <Calendar className="w-5 h-5 text-primary" />
+                        <CalendarIcon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold">{reportData.totalBookings}</p>
@@ -484,7 +532,7 @@ const ZoneDetails = () => {
         <TabsContent value="booking">
           <Card>
             <CardContent className="p-6 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-primary mb-4" />
+              <CalendarIcon className="w-12 h-12 mx-auto text-primary mb-4" />
               <h3 className="text-lg font-semibold mb-2">Book a Slot at {zone.name}</h3>
               <p className="text-muted-foreground mb-4">
                   {selectedSlotId

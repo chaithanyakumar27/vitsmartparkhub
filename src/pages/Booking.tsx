@@ -47,6 +47,7 @@ interface ParkingSlot {
   slot_type: VehicleType;
   is_available: boolean | null;
   is_reserved: boolean | null;
+  is_booked?: boolean;
 }
 
 const getRequiredSlotType = (vehicleType: VehicleType): 'car' | 'motorcycle' =>
@@ -162,12 +163,13 @@ const Booking = () => {
           .map((booking) => booking.slot_id)
       );
 
-      const nextSlots = (slotsResponse.data || []).filter(
-        (slot) => !blockedSlotIds.has(slot.id)
-      );
+      const allSlots = (slotsResponse.data || []).map((slot) => ({
+        ...slot,
+        is_booked: blockedSlotIds.has(slot.id),
+      }));
 
-      setAvailableSlots(nextSlots);
-      if (selectedSlot && !nextSlots.some((slot) => slot.id === selectedSlot)) {
+      setAvailableSlots(allSlots);
+      if (selectedSlot && blockedSlotIds.has(selectedSlot)) {
         setSelectedSlot('');
       }
       setIsSlotsLoading(false);
@@ -433,21 +435,30 @@ const Booking = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {availableSlots.map((slot) => (
-                        <button
-                          key={slot.id}
-                          type="button"
-                          onClick={() => setSelectedSlot(slot.id)}
-                          className={cn(
-                            'rounded-lg border px-3 py-3 text-sm font-medium transition-all',
-                            selectedSlot === slot.id
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-border bg-card text-card-foreground hover:border-primary/40 hover:bg-accent'
-                          )}
-                        >
-                          {slot.slot_number}
-                        </button>
-                      ))}
+                      {availableSlots.map((slot) => {
+                        const isBooked = slot.is_booked;
+                        return (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            disabled={isBooked}
+                            onClick={() => !isBooked && setSelectedSlot(slot.id)}
+                            className={cn(
+                              'rounded-lg border px-3 py-3 text-sm font-medium transition-all',
+                              isBooked
+                                ? 'border-destructive/30 bg-destructive/10 text-destructive cursor-not-allowed opacity-70'
+                                : selectedSlot === slot.id
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-card text-card-foreground hover:border-primary/40 hover:bg-accent'
+                            )}
+                          >
+                            <span className="block">{slot.slot_number}</span>
+                            {isBooked && (
+                              <span className="block text-[10px] mt-1 text-destructive font-normal">Booked</span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
