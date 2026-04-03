@@ -300,7 +300,7 @@ const ZoneDetails = () => {
             Reports
           </TabsTrigger>
           <TabsTrigger value="booking" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
+            <CalendarIcon className="w-4 h-4" />
             Book Now
           </TabsTrigger>
         </TabsList>
@@ -447,7 +447,7 @@ const ZoneDetails = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
-                        <Calendar className="w-5 h-5 text-primary" />
+                        <CalendarIcon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
                         <p className="text-2xl font-bold">{reportData.totalBookings}</p>
@@ -532,7 +532,7 @@ const ZoneDetails = () => {
         <TabsContent value="booking">
           <Card>
             <CardContent className="p-6 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-primary mb-4" />
+              <CalendarIcon className="w-12 h-12 mx-auto text-primary mb-4" />
               <h3 className="text-lg font-semibold mb-2">Book a Slot at {zone.name}</h3>
               <p className="text-muted-foreground mb-4">
                   {selectedSlotId
