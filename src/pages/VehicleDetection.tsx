@@ -80,9 +80,6 @@ const VehicleDetection = () => {
   const [slotWidth, setSlotWidth] = useState('250');
   const [altSlots, setAltSlots] = useState<string[]>([]);
 
-  // SMS
-  const [ownerPhone, setOwnerPhone] = useState('');
-  const [isSendingSms, setIsSendingSms] = useState(false);
 
   useEffect(() => {
     supabase.from('car_dimensions').select('*').order('category, make, model')
