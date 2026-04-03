@@ -135,7 +135,7 @@ const ZoneDetails = () => {
     fetchBookingsForDate();
   }, [zone, selectedDate]);
 
-
+  useEffect(() => {
     const fetchReportData = async () => {
       if (!zone) return;
 
