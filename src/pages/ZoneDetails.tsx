@@ -115,7 +115,27 @@ const ZoneDetails = () => {
     fetchZoneData();
   }, [code, navigate]);
 
+  // Fetch bookings for selected date to determine slot availability
   useEffect(() => {
+    const fetchBookingsForDate = async () => {
+      if (!zone) return;
+
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('slot_id')
+        .eq('zone_id', zone.id)
+        .eq('booking_date', dateStr)
+        .in('status', ['pending', 'confirmed', 'active']);
+
+      const ids = new Set((bookings || []).map(b => b.slot_id));
+      setBookedSlotIds(ids);
+    };
+
+    fetchBookingsForDate();
+  }, [zone, selectedDate]);
+
+
     const fetchReportData = async () => {
       if (!zone) return;
 
